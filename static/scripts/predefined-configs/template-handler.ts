@@ -9,7 +9,7 @@ import { addTrackedEventListener, updateGuiTitle } from "../rendering/utils";
 import { Manifest, ManifestPreDecode, Plugin, PluginConfig } from "../../types/plugins";
 import { createConfigParamTooltip, createElement, createInputRow } from "../../utils/element-helpers";
 import { getManifestCache } from "../../utils/storage";
-import { STRINGS } from "../../utils/strings";
+import { resolvePluginReference, STRINGS } from "../../utils/strings";
 import { toastNotification } from "../../utils/toaster";
 
 type TemplateTypes = "minimal" | "full-defaults" | "custom";
@@ -98,18 +98,23 @@ async function handleFullDefaultsTemplate(renderer: ManifestRenderer): Promise<s
   const config = await response.text();
 
   const manifestCache = getManifestCache();
-  const plugins = Object.keys(manifestCache).map((key) => manifestCache[key]);
   const pluginWithDefaults: { name: string; defaults: ManifestPreDecode }[] = [];
 
-  plugins.forEach((plugin) => {
+  Object.entries(manifestCache).forEach(([repoName, plugin]) => {
     const {
       manifest: { configuration },
     } = plugin;
     if (!configuration) {
       return;
     }
+
+    const pluginReference = resolvePluginReference(plugin.homepageUrl, repoName);
+    if (!pluginReference) {
+      return;
+    }
+
     pluginWithDefaults.push({
-      name: plugin.homepageUrl || plugin.manifest.name,
+      name: pluginReference,
       defaults: buildDefaultValues(configuration),
     });
   });
@@ -197,30 +202,13 @@ function writeRequiredConfig(plugins: { name: string; defaults: Manifest["config
   const configInputs = document.querySelectorAll<HTMLInputElement | HTMLTextAreaElement>(".config-input");
   const newConfig = parseConfigInputs(configInputs, {} as Manifest, plugins);
 
-  const manifestCache = getManifestCache();
-  const pluginNames = Object.values(manifestCache).map((plugin) => plugin.homepageUrl || plugin.manifest.name);
-
   const pluginArr: Plugin[] = [];
 
   for (const [name, config] of Object.entries(newConfig.config)) {
-    // this relies on the worker deployment url containing the plugin name
-    const pluginUrl = pluginNames.find((url) => {
-      return url.includes(name);
-    });
-
-    if (!pluginUrl) {
-      toastNotification(`No plugin URL found for ${name}.`, {
-        type: "error",
-        shouldAutoDismiss: true,
-      });
-
-      return;
-    }
-
     const plugin: Plugin = {
       uses: [
         {
-          plugin: pluginUrl,
+          plugin: name,
           with: config as Record<string, unknown>,
         },
       ],

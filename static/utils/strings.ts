@@ -26,3 +26,33 @@ export function extractPluginIdentifier(url: string): string {
   // For all other URLs (workers, etc), use the full URL
   return url;
 }
+
+const ORG_REPO_PATTERN = /^([A-Za-z0-9_.-]+)\/([A-Za-z0-9_.-]+)(?:@.+)?$/;
+
+/**
+ * Returns an org/repo plugin reference from any known plugin source.
+ * - Preserves already-valid org/repo values (including values with @ref by stripping the ref)
+ * - Extracts org/repo from GitHub URLs
+ * - Falls back to `fallbackOrg/fallbackRepo` for worker URLs and other formats
+ */
+export function resolvePluginReference(pluginSource: string | null | undefined, fallbackRepo?: string, fallbackOrg = "ubiquity-os-marketplace"): string | null {
+  if (pluginSource) {
+    const orgRepoMatch = pluginSource.match(ORG_REPO_PATTERN);
+    if (orgRepoMatch) {
+      return `${orgRepoMatch[1]}/${orgRepoMatch[2]}`;
+    }
+
+    if (pluginSource.includes("github.com/") || pluginSource.includes("githubusercontent.com/")) {
+      const parts = pluginSource.split("/");
+      if (parts.length >= 5) {
+        return `${parts[3]}/${parts[4].split("@")[0].split("?")[0]}`;
+      }
+    }
+  }
+
+  if (fallbackRepo) {
+    return `${fallbackOrg}/${fallbackRepo}`;
+  }
+
+  return null;
+}

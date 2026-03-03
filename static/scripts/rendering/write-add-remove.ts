@@ -46,20 +46,24 @@ export function writeNewConfig(renderer: ManifestRenderer, option: "add" | "remo
 
   renderer.configParser.loadConfig();
   const normalizedPluginName = normalizePluginName(pluginManifest.manifest.name);
-  const pluginUrl = pluginManifest.homepageUrl;
+  const pluginName = localStorage.getItem("selectedPluginName") || normalizedPluginName;
+  
+  // Use org/repo format instead of full URL
+  // The marketplace org is hardcoded as ubiquity-os-marketplace in the fetcher
+  const pluginOrgRepo = `ubiquity-os-marketplace/${pluginName}`;
 
-  if (!pluginUrl) {
-    toastNotification(`No plugin URL found for ${normalizedPluginName}.`, {
+  if (!pluginOrgRepo) {
+    toastNotification(`No plugin reference found for ${normalizedPluginName}.`, {
       type: "error",
       shouldAutoDismiss: true,
     });
-    throw new Error("No plugin URL found");
+    throw new Error("No plugin reference found");
   }
 
   const plugin: Plugin = {
     uses: [
       {
-        plugin: pluginUrl,
+        plugin: pluginOrgRepo,
         with: newConfig,
       },
     ],

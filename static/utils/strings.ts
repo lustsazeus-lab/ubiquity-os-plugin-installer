@@ -9,6 +9,24 @@ export const STRINGS = {
   PICKER_SELECT: "picker-select",
 };
 
+function parseGitHubLikeUrl(input: string): URL | null {
+  try {
+    const parsed = new URL(input);
+    const host = parsed.hostname.toLowerCase();
+    if (host === "github.com" || host === "raw.githubusercontent.com") {
+      return parsed;
+    }
+  } catch {
+    // Not a URL; ignore and allow other parsing branches.
+  }
+
+  return null;
+}
+
+function sanitizeRepoName(repo: string): string {
+  return repo.replace(/\.git$/i, "");
+}
+
 /**
  * For manifest URLs from GitHub, extracts just the repo name.
  * For all other URLs (workers, etc), returns the full URL.
@@ -16,10 +34,11 @@ export const STRINGS = {
  */
 export function extractPluginIdentifier(url: string): string {
   // For GitHub manifest URLs, extract just the repo name
-  if (url.includes("github.com/") || url.includes("githubusercontent.com/")) {
-    const parts = url.split("/");
-    if (parts.length >= 5) {
-      return parts[4].split("@")[0].split("?")[0]; // Get repo name without branch or query params
+  const parsed = parseGitHubLikeUrl(url);
+  if (parsed) {
+    const parts = parsed.pathname.split("/").filter(Boolean);
+    if (parts.length >= 2) {
+      return sanitizeRepoName(parts[1].split("@")[0].split("?")[0]); // Get repo name without branch or query params
     }
   }
 
@@ -42,10 +61,11 @@ export function resolvePluginReference(pluginSource: string | null | undefined, 
       return `${orgRepoMatch[1]}/${orgRepoMatch[2]}`;
     }
 
-    if (pluginSource.includes("github.com/") || pluginSource.includes("githubusercontent.com/")) {
-      const parts = pluginSource.split("/");
-      if (parts.length >= 5) {
-        return `${parts[3]}/${parts[4].split("@")[0].split("?")[0]}`;
+    const parsed = parseGitHubLikeUrl(pluginSource);
+    if (parsed) {
+      const parts = parsed.pathname.split("/").filter(Boolean);
+      if (parts.length >= 2) {
+        return `${parts[0]}/${sanitizeRepoName(parts[1].split("@")[0].split("?")[0])}`;
       }
     }
   }

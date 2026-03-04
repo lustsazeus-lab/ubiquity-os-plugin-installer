@@ -18,14 +18,18 @@ describe("resolvePluginReference", () => {
   });
 
   it("does not treat non-GitHub hosts as GitHub URLs", () => {
-    expect(resolvePluginReference("https://evilgithub.com/attacker/repo", "daemon-pricing")).toBe(daemonPricing);
+    expect(resolvePluginReference("https://evilgithub.com/attacker/repo")).toBeNull();
   });
 
   it("strips .git suffix from GitHub repository URLs", () => {
     expect(resolvePluginReference("https://github.com/ubiquity-os-marketplace/daemon-pricing.git")).toBe(daemonPricing);
   });
 
-  it("falls back to marketplace org + repo for worker URLs", () => {
-    expect(resolvePluginReference("https://ubiquity-os-daemon-pricing-development.ubiquity.workers.dev", "daemon-pricing")).toBe(daemonPricing);
+  it("extracts org/repo from worker URLs without forcing fallback repo", () => {
+    expect(resolvePluginReference("https://ubiquity-os-daemon-pricing-development.ubiquity.workers.dev")).toBe(daemonPricing);
+  });
+
+  it("falls back to marketplace org + repo when URL cannot be parsed", () => {
+    expect(resolvePluginReference("https://evilgithub.com/attacker/repo", "daemon-pricing")).toBe(daemonPricing);
   });
 });

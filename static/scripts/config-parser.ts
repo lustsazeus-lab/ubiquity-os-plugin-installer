@@ -24,7 +24,7 @@ function normalizeForComparison(candidate: string, target: string): string {
   const targetOrgRepo = splitOrgRepo(resolvePluginReference(target) ?? target);
 
   if (targetOrgRepo) {
-    return resolvePluginReference(candidate, targetOrgRepo.repo, targetOrgRepo.org) ?? candidate.trim();
+    return resolvePluginReference(candidate, undefined, targetOrgRepo.org) ?? candidate.trim();
   }
 
   return resolvePluginReference(candidate) ?? candidate.trim();

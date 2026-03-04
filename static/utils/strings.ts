@@ -27,6 +27,27 @@ function sanitizeRepoName(repo: string): string {
   return repo.replace(/\.git$/i, "");
 }
 
+function parseWorkerRepoName(input: string): string | null {
+  try {
+    const parsed = new URL(input);
+    const host = parsed.hostname.toLowerCase();
+
+    if (!host.endsWith(".ubiquity.workers.dev")) {
+      return null;
+    }
+
+    const workerName = host.split(".")[0] ?? "";
+    const repo = workerName
+      .replace(/^ubiquity-os-/, "")
+      .replace(/-(development|staging|production|prod)$/i, "")
+      .trim();
+
+    return repo ? sanitizeRepoName(repo) : null;
+  } catch {
+    return null;
+  }
+}
+
 /**
  * For manifest URLs from GitHub, extracts just the repo name.
  * For all other URLs (workers, etc), returns the full URL.
@@ -69,6 +90,11 @@ export function resolvePluginReference(pluginSource: string | null | undefined, 
       if (parts.length >= 2) {
         return `${parts[0]}/${sanitizeRepoName(parts[1].split("@")[0].split("?")[0])}`;
       }
+    }
+
+    const workerRepo = parseWorkerRepoName(normalizedSource);
+    if (workerRepo) {
+      return `${fallbackOrg.trim()}/${workerRepo}`;
     }
   }
 

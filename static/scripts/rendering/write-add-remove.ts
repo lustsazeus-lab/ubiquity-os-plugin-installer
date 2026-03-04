@@ -47,7 +47,7 @@ export function writeNewConfig(renderer: ManifestRenderer, option: "add" | "remo
 
   renderer.configParser.loadConfig();
   const normalizedPluginName = normalizePluginName(pluginManifest.manifest.name);
-  const pluginReference = resolvePluginReference(pluginManifest.homepageUrl, pluginManifest.manifest.name);
+  const pluginReference = resolvePluginReference(pluginManifest.homepageUrl, normalizedPluginName);
 
   if (!pluginReference) {
     toastNotification(`No plugin reference found for ${normalizedPluginName}.`, {

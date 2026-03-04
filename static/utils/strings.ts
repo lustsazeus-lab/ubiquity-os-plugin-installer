@@ -55,13 +55,15 @@ const ORG_REPO_PATTERN = /^([A-Za-z0-9_.-]+)\/([A-Za-z0-9_.-]+)(?:@.+)?$/;
  * - Falls back to `fallbackOrg/fallbackRepo` for worker URLs and other formats
  */
 export function resolvePluginReference(pluginSource: string | null | undefined, fallbackRepo?: string, fallbackOrg = "ubiquity-os-marketplace"): string | null {
-  if (pluginSource) {
-    const orgRepoMatch = pluginSource.match(ORG_REPO_PATTERN);
+  const normalizedSource = pluginSource?.trim();
+
+  if (normalizedSource) {
+    const orgRepoMatch = normalizedSource.match(ORG_REPO_PATTERN);
     if (orgRepoMatch) {
       return `${orgRepoMatch[1]}/${orgRepoMatch[2]}`;
     }
 
-    const parsed = parseGitHubLikeUrl(pluginSource);
+    const parsed = parseGitHubLikeUrl(normalizedSource);
     if (parsed) {
       const parts = parsed.pathname.split("/").filter(Boolean);
       if (parts.length >= 2) {
@@ -70,8 +72,10 @@ export function resolvePluginReference(pluginSource: string | null | undefined, 
     }
   }
 
-  if (fallbackRepo) {
-    return `${fallbackOrg}/${fallbackRepo}`;
+  const normalizedFallbackRepo = fallbackRepo?.trim();
+  if (normalizedFallbackRepo) {
+    const fallbackRepoName = sanitizeRepoName(normalizedFallbackRepo.split("@")[0].split("?")[0]);
+    return `${fallbackOrg.trim()}/${fallbackRepoName}`;
   }
 
   return null;

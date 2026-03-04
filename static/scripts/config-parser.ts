@@ -3,6 +3,36 @@ import { Plugin, PluginConfig } from "../types/plugins";
 import { Octokit } from "@octokit/rest";
 import { toastNotification } from "../utils/toaster";
 import { CONFIG_FULL_PATH, CONFIG_ORG_REPO } from "@ubiquity-os/plugin-sdk/constants";
+import { resolvePluginReference } from "../utils/strings";
+
+function splitOrgRepo(pluginRef: string): { org: string; repo: string } | null {
+  const [org, repo] = pluginRef.split("/");
+  if (!org || !repo) {
+    return null;
+  }
+
+  return {
+    org: org.trim(),
+    repo: repo
+      .trim()
+      .split("@")[0]
+      .replace(/\.git$/i, ""),
+  };
+}
+
+function normalizeForComparison(candidate: string, target: string): string {
+  const targetOrgRepo = splitOrgRepo(resolvePluginReference(target) ?? target);
+
+  if (targetOrgRepo) {
+    return resolvePluginReference(candidate, targetOrgRepo.repo, targetOrgRepo.org) ?? candidate.trim();
+  }
+
+  return resolvePluginReference(candidate) ?? candidate.trim();
+}
+
+function isSamePluginReference(existing: string, target: string): boolean {
+  return normalizeForComparison(existing, target) === normalizeForComparison(target, target);
+}
 
 /**
  * Responsible for fetching, parsing, and updating the user's installed plugin configurations.
@@ -168,8 +198,11 @@ export class ConfigParser {
     const parsedConfig = this.parseConfig(this.repoConfig);
     parsedConfig.plugins ??= [];
 
-    const existingPlugin = parsedConfig.plugins.find((p) => p.uses[0].plugin === plugin.uses[0].plugin);
+    const targetPluginRef = plugin.uses[0].plugin;
+    const existingPlugin = parsedConfig.plugins.find((p) => isSamePluginReference(p.uses[0].plugin, targetPluginRef));
+
     if (existingPlugin) {
+      existingPlugin.uses[0].plugin = targetPluginRef;
       existingPlugin.uses[0].with = plugin.uses[0].with;
     } else {
       parsedConfig.plugins.push(plugin);
@@ -187,7 +220,8 @@ export class ConfigParser {
       return;
     }
 
-    parsedConfig.plugins = parsedConfig.plugins.filter((p: Plugin) => p.uses[0].plugin !== plugin.uses[0].plugin);
+    const targetPluginRef = plugin.uses[0].plugin;
+    parsedConfig.plugins = parsedConfig.plugins.filter((p: Plugin) => !isSamePluginReference(p.uses[0].plugin, targetPluginRef));
     this.newConfigYml = YAML.stringify(parsedConfig);
     this.repoConfig = this.newConfigYml;
     this.saveConfig();

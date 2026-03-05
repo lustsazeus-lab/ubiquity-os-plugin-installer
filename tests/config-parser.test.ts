@@ -116,4 +116,40 @@ describe("ConfigParser legacy plugin reference matching", () => {
     expect(parsed.plugins[1].uses[0].plugin).toBe(daemonPricingReference);
     expect(parsed.plugins[1].uses[0].with).toEqual({ updated: true });
   });
+
+  it("handles malformed existing plugin entries without crashing", () => {
+    const parser = new ConfigParser();
+    parser.repoConfig = YAML.stringify({
+      plugins: [{}, { uses: [] }, { uses: [{ with: { dangling: true } }] }],
+    });
+
+    expect(() => {
+      parser.addPlugin({
+        uses: [
+          {
+            plugin: daemonPricingReference,
+            with: { updated: true },
+          },
+        ],
+      });
+    }).not.toThrow();
+
+    const parsedAfterAdd = parser.parseConfig(parser.newConfigYml);
+    expect(parsedAfterAdd.plugins).toHaveLength(4);
+    expect(parsedAfterAdd.plugins[3].uses[0].plugin).toBe(daemonPricingReference);
+
+    expect(() => {
+      parser.removePlugin({
+        uses: [
+          {
+            plugin: daemonPricingReference,
+            with: {},
+          },
+        ],
+      });
+    }).not.toThrow();
+
+    const parsedAfterRemove = parser.parseConfig(parser.newConfigYml);
+    expect(parsedAfterRemove.plugins).toHaveLength(3);
+  });
 });

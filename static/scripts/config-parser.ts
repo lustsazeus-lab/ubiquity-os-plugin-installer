@@ -184,17 +184,26 @@ export class ConfigParser {
     const parsedConfig = this.parseConfig(this.repoConfig);
     parsedConfig.plugins ??= [];
 
-    const targetPluginRef = plugin.uses[0].plugin;
+    const pluginUse = plugin.uses?.[0];
+    const targetPluginRef = pluginUse?.plugin;
+    if (typeof targetPluginRef !== "string") {
+      toastNotification("Invalid plugin config", { type: "error" });
+      return;
+    }
+
     const normalizedTargetPluginRef = resolvePluginReference(targetPluginRef) ?? targetPluginRef.trim();
-    const existingPlugin = parsedConfig.plugins.find((p) => isSamePluginReference(p.uses[0].plugin, normalizedTargetPluginRef));
+    const existingPlugin = parsedConfig.plugins.find((p) => {
+      const existingRef = p.uses?.[0]?.plugin;
+      return typeof existingRef === "string" && isSamePluginReference(existingRef, normalizedTargetPluginRef);
+    });
 
     if (existingPlugin) {
       existingPlugin.uses[0].plugin = normalizedTargetPluginRef;
-      existingPlugin.uses[0].with = plugin.uses[0].with;
+      existingPlugin.uses[0].with = pluginUse.with;
     } else {
       parsedConfig.plugins.push({
         ...plugin,
-        uses: [{ ...plugin.uses[0], plugin: normalizedTargetPluginRef }],
+        uses: [{ ...pluginUse, plugin: normalizedTargetPluginRef }],
       });
     }
 
@@ -210,8 +219,16 @@ export class ConfigParser {
       return;
     }
 
-    const targetPluginRef = plugin.uses[0].plugin;
-    parsedConfig.plugins = parsedConfig.plugins.filter((p: Plugin) => !isSamePluginReference(p.uses[0].plugin, targetPluginRef));
+    const targetPluginRef = plugin.uses?.[0]?.plugin;
+    if (typeof targetPluginRef !== "string") {
+      toastNotification("Invalid plugin config", { type: "error" });
+      return;
+    }
+
+    parsedConfig.plugins = parsedConfig.plugins.filter((p: Plugin) => {
+      const existingRef = p.uses?.[0]?.plugin;
+      return !(typeof existingRef === "string" && isSamePluginReference(existingRef, targetPluginRef));
+    });
     this.newConfigYml = YAML.stringify(parsedConfig);
     this.repoConfig = this.newConfigYml;
     this.saveConfig();

@@ -26,14 +26,16 @@ describe("ConfigParser legacy plugin reference matching", () => {
     });
   });
 
-  it("updates existing worker URL entries instead of creating duplicates", () => {
+  it("updates existing worker URL entries without rewriting their plugin identifier", () => {
     const parser = new ConfigParser();
+    const legacyWorkerReference = "https://ubiquity-os-daemon-pricing-development.ubiquity.workers.dev";
+
     parser.repoConfig = YAML.stringify({
       plugins: [
         {
           uses: [
             {
-              plugin: "https://ubiquity-os-daemon-pricing-development.ubiquity.workers.dev",
+              plugin: legacyWorkerReference,
               with: { old: true },
             },
           ],
@@ -52,8 +54,40 @@ describe("ConfigParser legacy plugin reference matching", () => {
 
     const parsed = parser.parseConfig(parser.newConfigYml);
     expect(parsed.plugins).toHaveLength(1);
-    expect(parsed.plugins[0].uses[0].plugin).toBe(daemonPricingReference);
+    expect(parsed.plugins[0].uses[0].plugin).toBe(legacyWorkerReference);
     expect(parsed.plugins[0].uses[0].with).toEqual({ old: false, updated: true });
+  });
+
+  it("updates existing @ref plugin entries without rewriting their plugin identifier", () => {
+    const parser = new ConfigParser();
+    const legacyRef = "ubiquity-os-marketplace/daemon-pricing@development";
+
+    parser.repoConfig = YAML.stringify({
+      plugins: [
+        {
+          uses: [
+            {
+              plugin: legacyRef,
+              with: { enabled: true },
+            },
+          ],
+        },
+      ],
+    });
+
+    parser.addPlugin({
+      uses: [
+        {
+          plugin: daemonPricingReference,
+          with: { enabled: false, updated: true },
+        },
+      ],
+    });
+
+    const parsed = parser.parseConfig(parser.newConfigYml);
+    expect(parsed.plugins).toHaveLength(1);
+    expect(parsed.plugins[0].uses[0].plugin).toBe(legacyRef);
+    expect(parsed.plugins[0].uses[0].with).toEqual({ enabled: false, updated: true });
   });
 
   it("removes legacy @ref plugin entries when removing normalized org/repo", () => {

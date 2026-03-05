@@ -198,7 +198,10 @@ export class ConfigParser {
     });
 
     if (existingPlugin) {
-      existingPlugin.uses[0].plugin = normalizedTargetPluginRef;
+      const existingPluginRef = existingPlugin.uses?.[0]?.plugin;
+      if (typeof existingPluginRef !== "string" || existingPluginRef.trim() === "") {
+        existingPlugin.uses[0].plugin = normalizedTargetPluginRef;
+      }
       existingPlugin.uses[0].with = pluginUse.with;
     } else {
       parsedConfig.plugins.push({

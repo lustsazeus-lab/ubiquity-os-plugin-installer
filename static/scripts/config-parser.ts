@@ -5,29 +5,15 @@ import { toastNotification } from "../utils/toaster";
 import { CONFIG_FULL_PATH, CONFIG_ORG_REPO } from "@ubiquity-os/plugin-sdk/constants";
 import { resolvePluginReference } from "../utils/strings";
 
-function splitOrgRepo(pluginRef: string): { org: string; repo: string } | null {
-  const [org, repo] = pluginRef.split("/");
-  if (!org || !repo) {
-    return null;
-  }
-
-  return {
-    org: org.trim(),
-    repo: repo
-      .trim()
-      .split("@")[0]
-      .replace(/\.git$/i, ""),
-  };
-}
-
 function normalizeForComparison(candidate: string, target: string): string {
-  const targetOrgRepo = splitOrgRepo(resolvePluginReference(target) ?? target);
+  void target;
 
-  if (targetOrgRepo) {
-    return resolvePluginReference(candidate, undefined, targetOrgRepo.org) ?? candidate.trim();
+  const resolvedCandidate = resolvePluginReference(candidate);
+  if (resolvedCandidate) {
+    return resolvedCandidate;
   }
 
-  return resolvePluginReference(candidate) ?? candidate.trim();
+  return candidate.trim();
 }
 
 function isSamePluginReference(existing: string, target: string): boolean {
@@ -199,13 +185,17 @@ export class ConfigParser {
     parsedConfig.plugins ??= [];
 
     const targetPluginRef = plugin.uses[0].plugin;
-    const existingPlugin = parsedConfig.plugins.find((p) => isSamePluginReference(p.uses[0].plugin, targetPluginRef));
+    const normalizedTargetPluginRef = resolvePluginReference(targetPluginRef) ?? targetPluginRef.trim();
+    const existingPlugin = parsedConfig.plugins.find((p) => isSamePluginReference(p.uses[0].plugin, normalizedTargetPluginRef));
 
     if (existingPlugin) {
-      existingPlugin.uses[0].plugin = targetPluginRef;
+      existingPlugin.uses[0].plugin = normalizedTargetPluginRef;
       existingPlugin.uses[0].with = plugin.uses[0].with;
     } else {
-      parsedConfig.plugins.push(plugin);
+      parsedConfig.plugins.push({
+        ...plugin,
+        uses: [{ ...plugin.uses[0], plugin: normalizedTargetPluginRef }],
+      });
     }
 
     this.newConfigYml = YAML.stringify(parsedConfig);

@@ -81,7 +81,7 @@ export function resolvePluginReference(pluginSource: string | null | undefined, 
   if (normalizedSource) {
     const orgRepoMatch = normalizedSource.match(ORG_REPO_PATTERN);
     if (orgRepoMatch) {
-      return `${orgRepoMatch[1]}/${orgRepoMatch[2]}`;
+      return `${orgRepoMatch[1]}/${sanitizeRepoName(orgRepoMatch[2])}`;
     }
 
     const parsed = parseGitHubLikeUrl(normalizedSource);
